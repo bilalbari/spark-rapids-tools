@@ -61,12 +61,12 @@ class TaskModelManager extends Logging {
     val taskModel = TaskModel(event)
     try{
       kvStoreLocal.write(taskModel)
-      logInfo("TaskModel written to kvStoreLocal")
+//      logInfo("TaskModel written to kvStoreLocal")
   } catch {
       case _: NoSuchElementException => logError("Read element not found in store")
       case e: Exception => logError("Error writing to kvStoreLocal", e)
     } finally {
-      logInfo("Done writing to kvStoreLocal")
+//      logInfo("Done writing to kvStoreLocal")
     }
 
     val stageAttempts =
