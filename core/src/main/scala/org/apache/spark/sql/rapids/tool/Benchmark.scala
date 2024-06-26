@@ -2,7 +2,9 @@ package org.apache.spark.sql.rapids.tool
 
 
 import java.io.{OutputStream, PrintStream}
+import java.lang.management.ManagementFactory
 
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -10,6 +12,8 @@ import scala.util.Try
 
 import org.apache.commons.io.output.TeeOutputStream
 import org.apache.commons.lang3.SystemUtils
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
 
 import org.apache.spark.util.Utils
 
@@ -38,7 +42,8 @@ class Benchmark(
                                 warmupTime: FiniteDuration = 2.seconds,
                                 minTime: FiniteDuration = 2.seconds,
                                 outputPerIteration: Boolean = false,
-                                output: Option[OutputStream] = None) {
+                                output: Option[OutputStream] = None,
+                                outputFormat: String = "json") {
   import Benchmark._
   val benchmarks = mutable.ArrayBuffer.empty[Benchmark.Case]
 
@@ -75,6 +80,53 @@ class Benchmark(
     benchmarks += Benchmark.Case(name, f, numIters)
   }
 
+  private def outputJson(results: Seq[Result], firstBest: Double,
+                         jvmOsInfo: String, processorName: String): Unit = {
+    val resultsJson = results.zip(benchmarks).map { case (result, benchmark) =>
+      ("name" -> benchmark.name) ~
+        ("bestTimeMs" -> result.bestMs) ~
+        ("avgTimeMs" -> result.avgMs) ~
+        ("stdevMs" -> result.stdevMs) ~
+        ("rateMs" -> result.bestRate) ~
+        ("perRowNs" -> (1000 / result.bestRate)) ~
+        ("relative" -> (firstBest / result.bestMs)) ~
+        ("maxGcTimeMs" -> result.gcTimeMs) ~
+        ("maxGcCount" -> result.gcCount)
+    }
+
+    val json = ("jvmOsInfo" -> jvmOsInfo) ~
+      ("processorName" -> processorName) ~
+      ("results" -> resultsJson)
+
+    val jsonString = pretty(render(json))
+    out.println(jsonString)
+  }
+
+  private def outputConsole(results: Seq[Result], firstBest: Double,
+                            jvmOsInfo: String, processorName: String): Unit = {
+    val nameLen = Math.max(40, Math.max(name.length, benchmarks.map(_.name.length).max))
+    out.println(jvmOsInfo)
+    out.println(processorName)
+    out.printf(s"%-${nameLen}s %14s %14s %11s %12s %13s %10s %10s %10s\n",
+      name + ":",
+      "Best Time(ms)", "Avg Time(ms)", "Stdev(ms)", "Rate(M/s)", "Per Row(ns)",
+      "Relative", "Max GC Time(ms)", "Max GC Count")
+    out.println("-" * (nameLen + 106))
+    results.zip(benchmarks).foreach { case (result, benchmark) =>
+      out.printf(s"%-${nameLen}s %14s %14s %11s %12s %13s %10s %10s %10s\n",
+        benchmark.name,
+        "%5.0f" format result.bestMs,
+        "%4.0f" format result.avgMs,
+        "%5.0f" format result.stdevMs,
+        "%10.1f" format result.bestRate,
+        "%6.1f" format (1000 / result.bestRate),
+        "%3.1fX" format (firstBest / result.bestMs),
+        "%8d" format result.gcTimeMs,
+        "%5d" format result.gcCount)
+    }
+    out.println()
+  }
+
   /**
    * Runs the benchmark and outputs the results to stdout. This should be copied and added as
    * a comment with the benchmark. Although the results vary from machine to machine, it should
@@ -92,33 +144,29 @@ class Benchmark(
     println()
 
     val firstBest = results.head.bestMs
+    val jvmOsInfo = Benchmark.getJVMOSInfo()
+    val processorName = Benchmark.getProcessorName()
     // The results are going to be processor specific so it is useful to include that.
-    out.println(Benchmark.getJVMOSInfo())
-    out.println(Benchmark.getProcessorName())
-    val nameLen = Math.max(40, Math.max(name.length, benchmarks.map(_.name.length).max))
-    out.printf(s"%-${nameLen}s %14s %14s %11s %12s %13s %10s\n",
-      name + ":", "Best Time(ms)", "Avg Time(ms)", "Stdev(ms)", "Rate(M/s)", "Per Row(ns)", "Relative")
-    out.println("-" * (nameLen + 80))
-    results.zip(benchmarks).foreach { case (result, benchmark) =>
-      out.printf(s"%-${nameLen}s %14s %14s %11s %12s %13s %10s\n",
-        benchmark.name,
-        "%5.0f" format result.bestMs,
-        "%4.0f" format result.avgMs,
-        "%5.0f" format result.stdevMs,
-        "%10.1f" format result.bestRate,
-        "%6.1f" format (1000 / result.bestRate),
-        "%3.1fX" format (firstBest / result.bestMs))
+    if( outputFormat == "tbl") {
+      outputConsole(results, firstBest, jvmOsInfo, processorName)
+    } else if ( outputFormat == "json") {
+      outputJson(results, firstBest, jvmOsInfo, processorName)
     }
-    out.println()
-    // scalastyle:on
+  }
+
+  private def getGcMetrics: (Any, Any) = {
+    val gcBeans = ManagementFactory.getGarbageCollectorMXBeans
+    val gcTime = gcBeans.map(_.getCollectionTime).sum
+    val gcCount = gcBeans.map(_.getCollectionCount).sum
+    (gcTime, gcCount)
   }
 
   /**
    * Runs a single function `f` for iters, returning the average time the function took and
    * the rate of the function.
    */
-  def measure(num: Long, overrideNumIters: Int)(f: Timer => Unit): Result = {
-    System.gc()  // ensures garbage from previous cases don't impact this one
+  private def measure(num: Long, overrideNumIters: Int)(f: Timer => Unit): Result = {
+//    System.gc()  // ensures garbage from previous cases don't impact this one
     val warmupDeadline = warmupTime.fromNow
     while (!warmupDeadline.isOverdue()) {
       f(new Benchmark.Timer(-1))
@@ -126,13 +174,36 @@ class Benchmark(
     val minIters = if (overrideNumIters != 0) overrideNumIters else minNumIters
     val minDuration = if (overrideNumIters != 0) 0 else minTime.toNanos
     val runTimes = ArrayBuffer[Long]()
+    val memoryUsages = ArrayBuffer[Long]()
     var totalTime = 0L
+    var maxGcCount = 0L
+    var maxGcTime = 0L
     var i = 0
     while (i < minIters || totalTime < minDuration) {
       val timer = new Benchmark.Timer(i)
+      val beforeMem = (Runtime.getRuntime.totalMemory() -
+        Runtime.getRuntime.freeMemory())/(1024*1024)
+      val gcMetricsBefore = getGcMetrics
+      println(s"Running iteration $i")
+      println(s"Memory usage before: $beforeMem")
       f(timer)
+      val afterMem = (Runtime.getRuntime.totalMemory() -
+        Runtime.getRuntime.freeMemory())/(1024*1024)
       val runTime = timer.totalTime()
+      val gcMetricsAfter = getGcMetrics
+      val memUsed = afterMem - beforeMem
+      println(s"Memory usage after: $afterMem. Memory used: $memUsed MB")
+      val gcTime = gcMetricsAfter._1.asInstanceOf[Long] - gcMetricsBefore._1.asInstanceOf[Long]
+      val gcCount = gcMetricsAfter._2.asInstanceOf[Long] - gcMetricsBefore._2.asInstanceOf[Long]
+      if (gcTime > maxGcTime) {
+        maxGcTime = gcTime
+      }
+      if (gcCount > maxGcCount) {
+        maxGcCount = gcCount
+      }
+      println(s"GC time: $gcTime ms, GC count: $gcCount")
       runTimes += runTime
+      memoryUsages += memUsed
       totalTime += runTime
 
       if (outputPerIteration) {
@@ -151,7 +222,8 @@ class Benchmark(
     val stdev = if (runTimes.size > 1) {
       math.sqrt(runTimes.map(time => (time - avg) * (time - avg)).sum / (runTimes.size - 1))
     } else 0
-    Result(avg / 1000000.0, num / (best / 1000.0), best / 1000000.0, stdev / 1000000.0)
+    Result(avg / 1000000.0, num / (best / 1000.0), best / 1000000.0,
+      stdev / 1000000.0, maxGcTime, maxGcCount)
   }
 }
 
@@ -184,7 +256,8 @@ private[spark] object Benchmark {
   }
 
   case class Case(name: String, fn: Timer => Unit, numIters: Int)
-  case class Result(avgMs: Double, bestRate: Double, bestMs: Double, stdevMs: Double)
+  case class Result(avgMs: Double, bestRate: Double,
+                    bestMs: Double, stdevMs: Double, gcTimeMs: Long, gcCount:Long)
 
   /**
    * This should return a user helpful processor information. Getting at this depends on the OS.

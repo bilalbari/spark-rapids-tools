@@ -1,11 +1,16 @@
-================================================================================================
-QualificationBenchmark
-================================================================================================
-
-OpenJDK 64-Bit Server VM 1.8.0_412-8u412-ga-1~22.04.1-b08 on Linux 6.5.0-35-generic
-13th Gen Intel(R) Core(TM) i9-13900K
-QualificationBenchmark:                   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
-------------------------------------------------------------------------------------------------------------------------
-QualificationBenchmark                            80853          80930         109          0.0 40426623405.5       1.0X
-
+{
+  "jvmOsInfo" : "OpenJDK 64-Bit Server VM 1.8.0_412-8u412-ga-1~22.04.1-b08 on Linux 6.5.0-35-generic",
+  "processorName" : "13th Gen Intel(R) Core(TM) i9-13900K",
+  "results" : [ {
+    "name" : "QualificationBenchmark",
+    "bestTimeMs" : 82307.667672,
+    "avgTimeMs" : 82307.667672,
+    "stdevMs" : 0.0,
+    "rateMs" : 2.4299072693568426E-8,
+    "perRowNs" : 4.1153833836E10,
+    "relative" : 1.0,
+    "maxGcTimeMs" : 2064,
+    "maxGcCount" : 26
+  } ]
+}
 

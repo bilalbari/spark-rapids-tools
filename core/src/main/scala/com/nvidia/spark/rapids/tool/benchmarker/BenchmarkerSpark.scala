@@ -12,7 +12,7 @@ object BenchmarkerSpark extends BenchmarkBase{
   def test(): Unit = {
     runBenchmark("QualificationBenchmark"){
       val benchmarker = new Benchmark("QualificationBenchmark", 2,
-        warmupTime = 50.seconds, output = output)
+        warmupTime = 50.seconds, output = output, outputPerIteration = true, minNumIters = 1)
       benchmarker.addCase("QualificationBenchmark") { _ =>
         val qualificationArgs = Array("--output-directory",
           "/home/sbari/project-repos/scratch_folder/issue-367/output_folder",
