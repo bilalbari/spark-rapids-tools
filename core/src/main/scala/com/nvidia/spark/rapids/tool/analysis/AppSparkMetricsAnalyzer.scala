@@ -252,7 +252,7 @@ class AppSparkMetricsAnalyzer(app: AppBase) extends AppAnalysisBase(app) {
    * @return IOAnalysisProfileResult that contains the IO metrics aggregated by SQL
    */
   def aggregateIOMetricsBySql(
-       sqlMetricsAggs: Seq[SQLTaskAggMetricsProfileResult]): Seq[IOAnalysisProfileResult] = {
+      sqlMetricsAggs: Seq[SQLTaskAggMetricsProfileResult]): Seq[IOAnalysisProfileResult] = {
     val sqlIORows = sqlMetricsAggs.map { sqlAgg =>
       IOAnalysisProfileResult(sqlAgg.appIndex,
         app.appId,
