@@ -6,12 +6,13 @@ The wrapper improves end-user experience within the following dimensions:
 1. **Qualification**: Educate the CPU customer on the cost savings and acceleration potential of RAPIDS Accelerator for
    Apache Spark. The output shows a list of apps recommended for RAPIDS Accelerator for Apache Spark with estimated savings
    and speed-up.
-2. **Bootstrap**: Provide optimized RAPIDS Accelerator for Apache Spark configs based on GPU cluster shape. The output
-   shows updated Spark config settings on driver node.
-3. **Tuning**: Tune RAPIDS Accelerator for Apache Spark configs based on initial job run leveraging Spark event logs. The output
+2. **Tuning**: Tune RAPIDS Accelerator for Apache Spark configs based on initial job run leveraging Spark event logs. The output
    shows recommended per-app RAPIDS Accelerator for Apache Spark config settings.
-4. **Diagnostics**: Run diagnostic functions to validate the Dataproc with RAPIDS Accelerator for Apache Spark environment to
+3. **Diagnostics**: Run diagnostic functions to validate the Dataproc with RAPIDS Accelerator for Apache Spark environment to
    make sure the cluster is healthy and ready for Spark jobs.
+4. **Prediction**: Predict the speedup of running a Spark application with Spark RAPIDS on GPUs.
+5. **Train**: Train a model to predict the performance of a Spark job on RAPIDS Accelerator for Apache Spark. The output shows
+   the model file that can be used to predict the performance of a Spark job.
 
 
 ## Getting started
@@ -36,8 +37,9 @@ Set up a Python environment with a version between 3.8 and 3.10
       $ pip install -e .
       ```
       
-      Note that you can also use optional `test` to install dependencies required to run the unit-tests
-      `pip install -e '.[test]'`
+      Note:
+      - To install dependencies required for running unit tests, use the optional `test` parameter: `pip install -e '.[test]'`
+      - To install dependencies required for QualX training, use the optional `qualx` parameter `pip install -e '.[qualx]'`
 
     - Using wheel package built from the repo (see the build steps below).
 
@@ -77,6 +79,8 @@ Set up a Python environment similar to the steps above.
 
 Please refer to [spark-rapids-user-tools guide](https://github.com/NVIDIA/spark-rapids-tools/blob/main/user_tools/docs/index.md) for details on how to use the tools
 and the platform.
+
+Please refer to [qualx guide](docs/qualx.md) for details on how to use the QualX tool for prediction and training.
 
 ## What's new
 

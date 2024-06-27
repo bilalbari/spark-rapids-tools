@@ -114,9 +114,6 @@ class EMRPlatform(PlatformBase):
     def create_local_submission_job(self, job_prop, ctxt) -> Any:
         return EmrLocalRapidsJob(prop_container=job_prop, exec_ctxt=ctxt)
 
-    def _get_prediction_model_name(self) -> str:
-        return CspEnv.pretty_print(CspEnv.get_default())
-
     def generate_cluster_configuration(self, render_args: dict):
         image_version = self.configs.get_value_silent('clusterInference', 'defaultImage')
         render_args['IMAGE'] = f'"{image_version}"'
@@ -141,9 +138,10 @@ class EMRCMDDriver(CMDDriverBase):
                 if not (emr_pem_path.endswith('.pem') or emr_pem_path.endswith('ppk')):
                     incorrect_envs.append(f'Private key file path [{emr_pem_path}] should be ppk or pem format')
         else:
+            tools_env_k = Utils.find_full_rapids_tools_env_key('KEY_PAIR_PATH')
             incorrect_envs.append(
                 f'Private key file path is not set. It is required to SSH on driver node. '
-                f'Set {Utils.find_full_rapids_tools_env_key("KEY_PAIR_PATH")}')
+                f'Set {tools_env_k}')
         return incorrect_envs
 
     def pull_cluster_props_by_args(self, args: dict) -> str:

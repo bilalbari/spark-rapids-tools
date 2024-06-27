@@ -28,10 +28,9 @@ from spark_rapids_pytools.common.prop_manager import JSONPropertiesContainer
 from spark_rapids_pytools.common.sys_storage import FSUtil
 from spark_rapids_pytools.common.utilities import Utils, TemplateGenerator
 from spark_rapids_pytools.pricing.price_provider import SavingsEstimator
-from spark_rapids_pytools.rapids.rapids_job import RapidsJobPropContainer
 from spark_rapids_pytools.rapids.rapids_tool import RapidsJarTool
 from spark_rapids_tools.enums import QualFilterApp, QualGpuClusterReshapeType, QualEstimationModel
-from spark_rapids_tools.tools.model_xgboost import predict
+from spark_rapids_tools.tools.qualx.qualx_main import predict
 from spark_rapids_tools.tools.additional_heuristics import AdditionalHeuristics
 from spark_rapids_tools.tools.speedup_category import SpeedupCategory
 from spark_rapids_tools.tools.top_candidates import TopCandidates
@@ -461,17 +460,25 @@ class Qualification(RapidsJarTool):
         if len(subset_data) != all_apps_count:
             notes = 'Apps with the same name are grouped together and their metrics are averaged'
 
-        # recalculate estimated GPU speedup
-        subset_data['Estimated GPU Speedup'] = subset_data['App Duration'] / subset_data['Estimated GPU Duration']
+        # recalculate estimated GPU speedup. If no GPU-speedup; then set GPU speedup to 1.0
+        result_df = subset_data.copy()
+        result_df.loc[:, 'Estimated GPU Speedup'] = np.where(
+            result_df['Estimated GPU Duration'] != 0,
+            result_df['App Duration'].div(result_df['Estimated GPU Duration'], axis=0),
+            1.0)
         # fetch the column names required to recalculate the unsupported operators stage duration percent
         unsupported_ops_col_name = self.ctxt.get_value('local', 'output', 'unsupportedOperators',
                                                        'resultColumnName')
         unsupported_ops_perc_col_name = self.ctxt.get_value('local', 'output', 'unsupportedOperators',
                                                             'percentResultColumnName')
-        # recalculate unsupported operators stage duration percent
-        subset_data[unsupported_ops_perc_col_name] = \
-            subset_data[unsupported_ops_col_name] * 100.0 / subset_data['SQL Stage Durations Sum']
-        return subset_data, notes
+        # recalculate unsupported operators stage duration percent.
+        # The equation takes into consideration division by zero.
+        result_df[unsupported_ops_perc_col_name] = np.where(
+            result_df['SQL Stage Durations Sum'] != 0,
+            result_df[unsupported_ops_col_name] * 100.0 / result_df['SQL Stage Durations Sum'],
+            100.0
+        )
+        return result_df, notes
 
     def __remap_cols_for_shape_type(self,
                                     data_set: pd.DataFrame,
@@ -634,6 +641,8 @@ class Qualification(RapidsJarTool):
         saving_estimator_cache = {}
         savings_ranges = self.ctxt.get_value('local', 'output', 'processDFProps',
                                              'savingRecommendationsRanges')
+        default_savings_recommendation = self.ctxt.get_value('local', 'output', 'processDFProps',
+                                                             'savingsRecommendationsDefault')
 
         def get_costs_for_single_app(df_row, estimator: SavingsEstimator) -> pd.Series:
             raw_cpu_cost, raw_gpu_cost, _ = estimator.get_costs_and_savings(df_row['App Duration'],
@@ -641,6 +650,9 @@ class Qualification(RapidsJarTool):
             cpu_cost = (100 - self.ctxt.get_ctxt('cpu_discount')) / 100 * raw_cpu_cost
             gpu_cost = (100 - self.ctxt.get_ctxt('gpu_discount')) / 100 * raw_gpu_cost
             est_savings = 100.0 - ((100.0 * gpu_cost) / cpu_cost)
+            # If savings fall into unexpected values such as NaN or infinity, then the code set
+            # default to "Not Recommended"
+            savings_recommendations = default_savings_recommendation
             # We do not want to mistakenly mark a Not-applicable app as Recommended in the savings column
             if df_row[speedup_rec_col] == 'Not Applicable':
                 savings_recommendations = 'Not Applicable'
@@ -753,7 +765,7 @@ class Qualification(RapidsJarTool):
         # Apply additional heuristics to skip apps not suitable for GPU acceleration
         heuristics_ob = AdditionalHeuristics(
             props=self.ctxt.get_value('local', 'output', 'additionalHeuristics'),
-            tools_output_dir=self.ctxt.get_local('outputFolder'),
+            tools_output_dir=self.ctxt.get_rapids_output_folder(),
             output_file=output_files_info.get_value('intermediateOutput', 'files', 'heuristics', 'path'))
         apps_pruned_df = heuristics_ob.apply_heuristics(apps_pruned_df)
         speedup_category_ob = SpeedupCategory(self.ctxt.get_value('local', 'output', 'speedupCategories'))
@@ -962,10 +974,6 @@ class Qualification(RapidsJarTool):
         rapids_threads_args = self._get_rapids_threads_count(self.name)
         return ['--per-sql'] + rapids_threads_args + self._create_autotuner_rapids_args()
 
-    def _init_rapids_arg_list_for_profile(self) -> List[str]:
-        rapids_threads_args = self._get_rapids_threads_count(tool_name='profiling')
-        return super()._init_rapids_arg_list() + ['--csv'] + rapids_threads_args
-
     def __infer_cluster_and_update_savings(self, cluster_info_df: pd.DataFrame):
         """
         Update savings if CPU cluster can be inferred and corresponding GPU cluster can be defined.
@@ -1036,10 +1044,10 @@ class Qualification(RapidsJarTool):
         """
         # Execute the prediction model
         model_name = self.ctxt.platform.get_prediction_model_name()
-        input_dir = self.ctxt.get_local('outputFolder')
+        qual_output_dir = self.ctxt.get_local('outputFolder')
         output_info = self.__build_prediction_output_files_info()
-        predictions_df = predict(platform=model_name, qual=input_dir,
-                                 profile=input_dir, output_info=output_info)
+        predictions_df = predict(platform=model_name, qual=qual_output_dir,
+                                 output_info=output_info)
 
         if predictions_df.empty:
             return all_apps
@@ -1080,9 +1088,6 @@ class QualificationAsLocal(Qualification):
 
     def _prepare_job_arguments(self):
         super()._prepare_local_job_arguments()
-        if self.ctxt.get_ctxt('estimationModel') == QualEstimationModel.XGBOOST:
-            # when estimation_model is enabled
-            self._prepare_profile_job_args()
 
     def _delete_remote_dep_folder(self):
         self.logger.debug('Local mode skipping deleting the remote workdir')
@@ -1092,36 +1097,3 @@ class QualificationAsLocal(Qualification):
 
     def _archive_results(self):
         self._archive_local_results()
-
-    def _prepare_profile_job_args(self):
-        # get the job arguments
-        job_args = self._re_evaluate_platform_args('profiling')
-        # now we can create the job object
-        # Todo: For dataproc, this can be autogenerated from cluster name
-        rapids_arg_list = self._init_rapids_arg_list_for_profile()
-        ctxt_rapids_args = self.ctxt.get_ctxt('rapidsArgs')
-        jar_file_path = ctxt_rapids_args.get('jarFilePath')
-        rapids_opts = ctxt_rapids_args.get('rapidsOpts')
-        if rapids_opts:
-            rapids_arg_list.extend(rapids_opts)
-        # add the eventlogs at the end of all the tool options
-        rapids_arg_list.extend(self.ctxt.get_ctxt('eventLogs'))
-        class_name = 'com.nvidia.spark.rapids.tool.profiling.ProfileMain'
-        rapids_arg_obj = {
-            'jarFile': jar_file_path,
-            'jarArgs': rapids_arg_list,
-            'className': class_name
-        }
-        platform_args = job_args.get('platformArgs')
-        spark_conf_args = {}
-        job_properties_json = {
-            'outputDirectory': job_args.get('outputDirectory'),
-            'rapidsArgs': rapids_arg_obj,
-            'sparkConfArgs': spark_conf_args,
-            'platformArgs': platform_args
-        }
-        rapids_job_container = RapidsJobPropContainer(prop_arg=job_properties_json,
-                                                      file_load=False)
-        rapids_containers = self.ctxt.get_ctxt('rapidsJobContainers')
-        rapids_containers.append(rapids_job_container)
-        self.ctxt.set_ctxt('rapidsJobContainers', rapids_containers)
