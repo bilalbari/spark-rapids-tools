@@ -39,7 +39,7 @@ class Benchmark(
                  name: String,
                  valuesPerIteration: Long,
                  minNumIters: Int = 2,
-                 warmupTime: FiniteDuration = 2.seconds,
+                 warmupIters: Int = 2,
                  minTime: FiniteDuration = 2.seconds,
                  outputPerIteration: Boolean = false,
                  output: Option[OutputStream] = None,
@@ -168,9 +168,11 @@ class Benchmark(
    */
   private def measure(num: Long, overrideNumIters: Int)(f: Timer => Unit): Result = {
     //    System.gc()  // ensures garbage from previous cases don't impact this one
-    val warmupDeadline = warmupTime.fromNow
-    while (!warmupDeadline.isOverdue()) {
+    var wi = 0
+    while (wi < warmupIters) {
+      println(s"Warmup iteration $wi")
       f(new Benchmark.Timer(-1))
+      wi += 1
     }
     val minIters = if (overrideNumIters != 0) overrideNumIters else minNumIters
     val minDuration = if (overrideNumIters != 0) 0 else minTime.toNanos
