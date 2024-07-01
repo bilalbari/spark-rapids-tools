@@ -7,25 +7,22 @@ import org.apache.spark.benchmarker.{Benchmark, BenchmarkBase}
 
 object QualificationBenchmark extends BenchmarkBase{
 
-  def test(): Unit = {
+  override def runBenchmarkSuite(iterations:Int, warmUpIterations:Int,
+                                 outputFormat: String,
+                                 mainArgs: Array[String]): Unit = {
     runBenchmark("QualificationBenchmark"){
-      val benchmarker = new Benchmark("QualificationBenchmark", 2,
-        output = output, outputPerIteration = true, minNumIters = 1)
+      val benchmarker = new Benchmark("QualificationBenchmark",
+        2,
+        output = output,
+        outputPerIteration = true,
+        warmupIters = warmUpIterations,
+        minNumIters = iterations,
+        outputFormat = outputFormat)
       benchmarker.addCase("QualificationBenchmark") { _ =>
-        val qualificationArgs = Array("--output-directory",
-          "/home/sbari/project-repos/scratch_folder/issue-367/output_folder",
-          "--per-sql","true",
-          "/home/sbari/project-repos/scratch_folder/issue-978/eventlogs/temp-event-logs/databricks",
-        )
-        mainInternal(new QualificationArgs(qualificationArgs),
+        mainInternal(new QualificationArgs(mainArgs),
           printStdout = true, enablePB = true)
       }
-
       benchmarker.run()
     }
-  }
-
-  override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
-    test()
   }
 }

@@ -29,8 +29,7 @@ import org.apache.spark.util.Utils
  * @param name name of this benchmark.
  * @param valuesPerIteration number of values used in the test case, used to compute rows/s.
  * @param minNumIters the min number of iterations that will be run per case, not counting warm-up.
- * @param warmupTime amount of time to spend running dummy case iterations for JIT warm-up.
- * @param minTime further iterations will be run for each case until this time is used up.
+ * @param warmupIters the number of warmup iterations that will be run before the actual benchmark.
  * @param outputPerIteration if true, the timing for each run will be printed to stdout.
  * @param output optional output stream to write benchmark results to
  * @param outputFormat format of the output. It can be "json" or "tbl"
@@ -38,12 +37,11 @@ import org.apache.spark.util.Utils
 class Benchmark(
                  name: String,
                  valuesPerIteration: Long,
-                 minNumIters: Int = 2,
-                 warmupIters: Int = 2,
-                 minTime: FiniteDuration = 2.seconds,
+                 minNumIters: Int,
+                 warmupIters: Int,
                  outputPerIteration: Boolean = false,
                  output: Option[OutputStream] = None,
-                 outputFormat: String = "json") {
+                 outputFormat: String) {
   import Benchmark._
 
   val benchmarks = mutable.ArrayBuffer.empty[Benchmark.Case]
@@ -175,14 +173,13 @@ class Benchmark(
       wi += 1
     }
     val minIters = if (overrideNumIters != 0) overrideNumIters else minNumIters
-    val minDuration = if (overrideNumIters != 0) 0 else minTime.toNanos
     val runTimes = ArrayBuffer[Long]()
     val memoryUsages = ArrayBuffer[Long]()
     var totalTime = 0L
     var maxGcCount = 0L
     var maxGcTime = 0L
     var i = 0
-    while (i < minIters || totalTime < minDuration) {
+    while (i < minIters) {
       val timer = new Benchmark.Timer(i)
       val beforeMem = (Runtime.getRuntime.totalMemory() -
         Runtime.getRuntime.freeMemory())/(1024*1024)
