@@ -1,18 +1,3 @@
-/*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.apache.spark.sql.rapids.tool.store
 
 import scala.collection.mutable.{ArrayBuffer, SortedMap}
@@ -20,32 +5,9 @@ import scala.collection.mutable.{ArrayBuffer, SortedMap}
 import org.apache.spark.scheduler.SparkListenerTaskEnd
 import org.apache.spark.sql.rapids.tool.annotation.Since
 
-/**
- * A class to maintain the tasks.
- * There is an alternative design that consists of using StageModel as a parent holding a list of
- * tasks.
- * However, the decision to use a standalone TaskModelManager at the moment is to achieve the
- * following targets:
- * 1- separation between managing the Stages and their Tasks. It is known that Tasks represent the
- * highest percentage of allocated objects in the memory. This allows us to drop the entire tasks
- * management if we dice to aggregate the metrics through the Acccumulables list.
- * 2- flexibility in refactoring the TaskManager to use a permanent storage toward future
- * improvements.
- */
 @Since("24.04.1")
-class TaskModelManager extends TaskModelManagerTrait {
-  // A nested HashMap to map between ((Int: stageId, Int: attemptId) -> ArrayBuffer[TaskModel]).
-  // We keep track of the attemptId to allow improvement down the road if we decide to handle
-  // different Attempts.
-  // A new Task is added by TaskEnd event handler.
-  // - 1st level maps between [Int: stageId -> 2nd Level]
-  // - 2nd level maps between [Int: attemptId -> ArrayBuffer[TaskModel]]
-  // Use Nested Maps to store taskModels which should be faster to retrieve than a map of
-  // composite key (i.e., Tuple).
-  // Composite keys would cost more because it implicitly allocates a new object every time there
-  // is a read operation from the map.
-  // Finally use SortedMaps to keep the map sorted. That way iterating on the map will be orders
-  // by IDs/AttemptIDs.
+class TaskModelManagerInMemory extends TaskModelManagerTrait {
+  
   val stageAttemptToTasks: SortedMap[Int, SortedMap[Int, ArrayBuffer[TaskModel]]] =
     SortedMap[Int, SortedMap[Int, ArrayBuffer[TaskModel]]]()
 
