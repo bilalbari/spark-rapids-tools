@@ -67,7 +67,7 @@ case class TaskModel(
     output_bytesWritten: Long,
     output_recordsWritten: Long){
   @KVIndex
-  def id: (Int, Int, Long) = (stageId, stageAttemptId, taskId)
+  def id: (Int, Int, Long, Int) = (stageId, stageAttemptId, taskId, attempt)
 }
 
 object TaskModel {

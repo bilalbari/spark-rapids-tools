@@ -9,14 +9,21 @@ import org.apache.spark.status.KVUtils.open
 import org.apache.spark.util.kvstore.KVStore
 
 class KVLocalStore(name: String) extends Logging{
-  private val _path = new File(s"${System.getProperty("java.io.tmpdir")}/rocksdb_$name")
-  if (_path.exists()) {
-    logWarning(s"Deleting existing local store at ${_path.getAbsolutePath}")
-    _path.delete()
+  private val _path = File.createTempFile(name, "store")
+  private val db: KVStore = openConnection
+
+  private def openConnection: KVStore = {
+    try{
+      open(_path,
+        AppStatusStoreMetadata(2L),
+        new SparkConf().set("spark.history.store.hybridStore.diskBackend", "rocksdb"), live=true)
+    }
+    catch {
+      case e: Exception =>
+        logError(s"Error opening connection to local store at ${_path}", e)
+        throw e
+    }
   }
-  private val db: KVStore = open(_path,
-    AppStatusStoreMetadata(2L),
-    new SparkConf().set("spark.history.store.hybridStore.diskBackend", "rocksdb"), live=true)
 
   def write[T](obj: T): Unit = {
     db.write(obj)

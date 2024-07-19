@@ -7,8 +7,8 @@ import org.apache.spark.sql.rapids.tool.annotation.Since
 
 @Since("24.04.1")
 class TaskModelManagerInMemory extends TaskModelManagerTrait {
-  
-  val stageAttemptToTasks: SortedMap[Int, SortedMap[Int, ArrayBuffer[TaskModel]]] =
+
+  private val stageAttemptToTasks: SortedMap[Int, SortedMap[Int, ArrayBuffer[TaskModel]]] =
     SortedMap[Int, SortedMap[Int, ArrayBuffer[TaskModel]]]()
 
   // Given a Spark taskEnd event, create a new Task and add it to the Map.
@@ -67,5 +67,27 @@ class TaskModelManagerInMemory extends TaskModelManagerTrait {
   // This is implemented to support callers that do not use stageAttemptID in their logic.
   def getTasksByStageIds(stageIds: Iterable[Int]): Iterable[TaskModel] = {
     stageIds.flatMap(getAllTasksStageAttempt)
+  }
+
+  def getAllTasksIndexedByStageAttempt: Map[(Int, Int), Seq[TaskModel]] = {
+    var results = Map[(Int, Int), Seq[TaskModel]]()
+    stageAttemptToTasks.foreach { case (stageId, stageAttempts) =>
+      stageAttempts.foreach { case (stageAttemptId, tasks) =>
+        results += (stageId, stageAttemptId) -> tasks
+      }
+    }
+    results
+  }
+
+  def getAllTasksIndexedByStage: Map[Int, Seq[TaskModel]] = {
+    var results = Map[Int, Seq[TaskModel]]()
+    stageAttemptToTasks.foreach { case (stageId, stageAttempts) =>
+      val tempBuffer = ArrayBuffer[TaskModel]()
+      stageAttempts.foreach { case (_, tasks) =>
+        tempBuffer.appendAll(tasks)
+      }
+      results += stageId -> tempBuffer
+    }
+    results
   }
 }

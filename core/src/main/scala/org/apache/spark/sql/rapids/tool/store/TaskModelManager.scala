@@ -33,7 +33,7 @@ import org.apache.spark.sql.rapids.tool.annotation.Since
  * improvements.
  */
 @Since("24.04.1")
-class TaskModelManager extends TaskModelManagerTrait {
+class TaskModelManager {
   // A nested HashMap to map between ((Int: stageId, Int: attemptId) -> ArrayBuffer[TaskModel]).
   // We keep track of the attemptId to allow improvement down the road if we decide to handle
   // different Attempts.
