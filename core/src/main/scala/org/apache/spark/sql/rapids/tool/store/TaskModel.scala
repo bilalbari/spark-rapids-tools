@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
 import org.apache.spark.TaskFailedReason
 import org.apache.spark.scheduler.SparkListenerTaskEnd
 import org.apache.spark.sql.rapids.tool.annotation.Since
+import org.apache.spark.util.kvstore.KVIndex
 
 @Since("24.04.1")
 case class TaskModel(
@@ -64,7 +65,10 @@ case class TaskModel(
     input_bytesRead: Long,
     input_recordsRead: Long,
     output_bytesWritten: Long,
-    output_recordsWritten: Long)
+    output_recordsWritten: Long){
+  @KVIndex
+  def id: (Int, Int, Long, Int) = (stageId, stageAttemptId, taskId, attempt)
+}
 
 object TaskModel {
   def apply(event: SparkListenerTaskEnd): TaskModel = {
