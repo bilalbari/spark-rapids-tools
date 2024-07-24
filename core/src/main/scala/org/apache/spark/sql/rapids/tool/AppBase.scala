@@ -395,6 +395,14 @@ abstract class AppBase(
 
   protected def postCompletion(): Unit = {
     calculateAppDuration()
+    println("Events processed")
+    println("Pre-GC memory utilisation")
+    println("Total memory: " + Runtime.getRuntime.totalMemory()/1024/1024 + " MB")
+    println("Free memory: " + Runtime.getRuntime.freeMemory()/1024/1024 + " MB")
+    System.gc()
+    println("Post-GC memory utilisation")
+    println("Total memory: " + Runtime.getRuntime.totalMemory()/1024/1024 + " MB")
+    println("Free memory: " + Runtime.getRuntime.freeMemory()/1024/1024 + " MB")
   }
 
   /**
