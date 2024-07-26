@@ -60,7 +60,7 @@ object AccumInfo {
         val parsedLongValue = incomingAccum.value.flatMap(parseAccumFieldToLong)
         ai.stageValuesMap(stageId) =
           if (parsedLongValue.isDefined) {
-          Math.max(ai.stageValuesMap(stageId),parsedLongValue.get)
+          Math.max(ai.stageValuesMap.getOrElse(stageId,0L),parsedLongValue.get)
         } else {
           0L
         }

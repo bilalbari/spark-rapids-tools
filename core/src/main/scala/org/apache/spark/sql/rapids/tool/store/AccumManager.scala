@@ -20,10 +20,10 @@ class AccumManager extends Logging {
 
   def getOrCreateAccum(accum: AccumulableInfo, stageId: Int,
       taskId: Option[Long] = None): AccumInfo = {
-    val existingEntry = accumIdToInfo.get(accum.id)
-    val newAccum = AccumInfo(accum, existingEntry, stageId, taskId)
-    accumIdToInfo(accum.id) = newAccum
-    newAccum
+      val existingEntry = accumIdToInfo.get(accum.id)
+      val newAccum = AccumInfo(accum, existingEntry, stageId, taskId)
+      accumIdToInfo.put(accum.id,newAccum)
+      newAccum
   }
 
   def getAccumById(accumId: Long): Option[AccumInfo] = {

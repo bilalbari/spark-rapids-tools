@@ -621,7 +621,10 @@ object SQLPlanParser extends Logging {
     } else {
       Some(accumValues.max)
     }
-    val maxAcross = app.accumManager.getMaxAcross(accumId.get)
+    val maxAcross = accumId match {
+      case Some(id) => app.accumManager.getMaxAcross(id)
+      case None => None
+    }
     println(s"maxAcross: $maxAcross")
     println(s"original maxAcross: $maxDuration")
     maxDuration
