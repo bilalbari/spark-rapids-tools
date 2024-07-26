@@ -621,7 +621,15 @@ object SQLPlanParser extends Logging {
     } else {
       Some(accumValues.max)
     }
+    val maxAcross = app.accumManager.getMaxAcross(accumId.get)
+    println(s"maxAcross: $maxAcross")
+    println(s"original maxAcross: $maxDuration")
     maxDuration
+  }
+
+  def getTotalDurationNew(accumId: Option[Long], app: AppBase): Option[Long] = {
+    val accumNew = accumId.flatMap(id => app.accumManager.getAccumById(id))
+    accumNew.map(x => x.stageValuesMap.values.sum)
   }
 
   def getDriverTotalDuration(accumId: Option[Long], app: AppBase): Option[Long] = {

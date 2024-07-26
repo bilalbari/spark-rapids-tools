@@ -276,6 +276,9 @@ class AppSQLPlanAnalyzer(app: AppBase, appIndex: Int) extends AppAnalysisBase(ap
       }
       val stageIdsForSQL = jobsForSql.flatMap(_._2.stageIds).toSet
       val accumsOpt = app.taskStageAccumMap.get(metric.accumulatorId)
+      val accumInfoOpt = app.accumManager.getAccumById(metric.accumulatorId)
+      val stats = app.accumManager.getAccumStats(accumInfoOpt)
+      println("The new stats are " + stats)
       val taskMax = accumsOpt match {
         case Some(accums) =>
           val filtered = accums.filter { a =>
@@ -304,7 +307,7 @@ class AppSQLPlanAnalyzer(app: AppBase, appIndex: Int) extends AppAnalysisBase(ap
           }
         case None => None
       }
-
+      println(s"The old stats are ${taskMax}")
       // local mode driver gets updates
       val driverAccumsOpt = app.driverAccumMap.get(metric.accumulatorId)
       val driverMax = driverAccumsOpt match {
@@ -371,10 +374,27 @@ class AppSQLPlanAnalyzer(app: AppBase, appIndex: Int) extends AppAnalysisBase(ap
       }
     }
 
+    val allAccu = app.accumManager.getAllAccumIds
+    val newStats = allAccu.map(x => {
+      val accumInfo = app.accumManager.getAccumById(x)
+      val accumStats = app.accumManager.getAccumStats(accumInfo)
+      AccumProfileResults(
+        appIndex = appIndex,
+        stageId = accumInfo.get.stageValuesMap.keySet.head.toString,
+        accumulatorId = x,
+        name = accumInfo.get.meta.name.getOrElse("Unknown"),
+        min = accumStats.minUpdate,
+        median = accumStats.medianUpdate,
+        max = accumStats.maxUpdate,
+        total = accumStats.sumUpdate
+      )
+    }).toSeq
+    println(s"New accumulable stats: ${newStats}")
+
     // Process taskStageAccumMap to get all the accumulators
     val stageLevelAccums = app.taskStageAccumMap.values.flatten
     val groupedByAccumulatorId = stageLevelAccums.groupBy(_.accumulatorId)
-    groupedByAccumulatorId.flatMap { case (accumulatorId, accums) =>
+    val newOutput = groupedByAccumulatorId.flatMap { case (accumulatorId, accums) =>
       // Extract and sort the update values, defaulting to 0 if not present
       val sortedUpdates = accums.flatMap(_.update).toSeq.sorted
 
@@ -393,6 +413,8 @@ class AppSQLPlanAnalyzer(app: AppBase, appIndex: Int) extends AppAnalysisBase(ap
         )
       }
     }.toSeq
+    println(s"The old accumulable stats: ${newOutput}")
+    newOutput
   }
 }
 

@@ -33,7 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListenerEvent, StageInfo}
 import org.apache.spark.sql.execution.SparkPlanInfo
 import org.apache.spark.sql.execution.ui.SparkPlanGraphNode
-import org.apache.spark.sql.rapids.tool.store.{StageModel, StageModelManager, TaskModelManager}
+import org.apache.spark.sql.rapids.tool.store.{AccumManager, StageModel, StageModelManager, TaskModelManager}
 import org.apache.spark.sql.rapids.tool.util.{EventUtils, RapidsToolsConfUtil, ToolsPlanGraph, UTF8Source}
 import org.apache.spark.util.Utils
 
@@ -81,6 +81,8 @@ abstract class AppBase(
   // accum id to task stage accum info
   var taskStageAccumMap: HashMap[Long, ArrayBuffer[TaskStageAccumCase]] =
     HashMap[Long, ArrayBuffer[TaskStageAccumCase]]()
+
+  lazy val accumManager: AccumManager = new AccumManager()
 
   lazy val stageManager: StageModelManager = new StageModelManager()
   // Container that manages TaskIno including SparkMetrics.
@@ -180,6 +182,7 @@ abstract class AppBase(
   }
 
   def cleanupAccumId(accId: Long): Unit = {
+    accumManager.removeAccumById(accId)
     taskStageAccumMap.remove(accId)
     driverAccumMap.remove(accId)
     stageManager.removeAccumulatorId(accId)
@@ -395,14 +398,14 @@ abstract class AppBase(
 
   protected def postCompletion(): Unit = {
     calculateAppDuration()
-    println("Events processed")
-    println("Pre-GC memory utilisation")
-    println("Total memory: " + Runtime.getRuntime.totalMemory()/1024/1024 + " MB")
-    println("Free memory: " + Runtime.getRuntime.freeMemory()/1024/1024 + " MB")
-    System.gc()
-    println("Post-GC memory utilisation")
-    println("Total memory: " + Runtime.getRuntime.totalMemory()/1024/1024 + " MB")
-    println("Free memory: " + Runtime.getRuntime.freeMemory()/1024/1024 + " MB")
+//    println("Events processed")
+//    println("Pre-GC memory utilisation")
+//    println("Total memory: " + Runtime.getRuntime.totalMemory()/1024/1024 + " MB")
+//    println("Free memory: " + Runtime.getRuntime.freeMemory()/1024/1024 + " MB")
+//    System.gc()
+//    println("Post-GC memory utilisation")
+//    println("Total memory: " + Runtime.getRuntime.totalMemory()/1024/1024 + " MB")
+//    println("Free memory: " + Runtime.getRuntime.freeMemory()/1024/1024 + " MB")
   }
 
   /**
@@ -410,6 +413,7 @@ abstract class AppBase(
    * post completion tasks.
    */
   def processEvents(): Unit = {
+    print("Processing events")
     processEventsInternal()
     postCompletion()
   }
