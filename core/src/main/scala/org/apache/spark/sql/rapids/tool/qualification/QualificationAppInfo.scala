@@ -881,8 +881,8 @@ class QualificationAppInfo(
   override def postCompletion(): Unit = {
     super.postCompletion()
     buildClusterInfo
-    System.gc()
-    println("We processed the eventlog.......")
+//    System.gc()
+//    println("We processed the eventlog.......")
 //    Thread.sleep(60000)
   }
 }
