@@ -2,14 +2,10 @@ package org.apache.spark.sql.rapids.tool.store
 
 import scala.collection.mutable
 
+import com.nvidia.spark.rapids.tool.analysis.StatisticsMetrics
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.AccumulableInfo
-
-case class AccumStats(
-  var minUpdate: Long,
-  var medianUpdate: Long,
-  var maxUpdate: Long,
-  var sumUpdate: Long)
 
 class AccumManager extends Logging {
 
@@ -30,15 +26,11 @@ class AccumManager extends Logging {
     accumIdToInfo.get(accumId)
   }
 
-  def getAllAccums: Iterable[AccumInfo] = {
-    accumIdToInfo.values
-  }
-
   def removeAccumById(accumId: Long): Option[AccumInfo] = {
     accumIdToInfo.remove(accumId)
   }
 
-  def getAccumStats(accumInfo: Option[AccumInfo]): AccumStats = {
+  def getAccumStats(accumInfo: Option[AccumInfo]): Option[StatisticsMetrics] = {
     accumInfo.map { accumInfo =>
       val taskUpdates = accumInfo.taskUpdatesMap.values
       val sortedTaskUpdates = taskUpdates.toSeq.sorted
@@ -54,24 +46,20 @@ class AccumManager extends Logging {
         }
       }
       val sumUpdate = taskUpdates.sum
-      AccumStats(minUpdate, medianUpdate, maxUpdate, sumUpdate)
-    }.getOrElse(AccumStats(0, 0, 0, 0))
+      StatisticsMetrics(minUpdate, medianUpdate, maxUpdate, sumUpdate)
+    }
   }
 
-  def getSortedTaskUpdates(accumId: Long): Seq[Long] = {
-    accumIdToInfo.get(accumId).map { accumInfo =>
-      accumInfo.taskUpdatesMap.values.toSeq.sorted
-    }.getOrElse(Seq.empty)
-  }
-
-  def getMaxAcross(accumId: Long): Long = {
-    val taskMax: Long = accumIdToInfo.get(accumId).map { accumInfo =>
-      accumInfo.taskUpdatesMap.values.max
-    }.getOrElse(0)
-    val stageMax: Long = accumIdToInfo.get(accumId).map { accumInfo =>
-      accumInfo.stageValuesMap.values.max
-    }.getOrElse(0)
-    Math.max(taskMax, stageMax)
+  def getMaxAcross(accumId: Option[Long]): Option[Long] = {
+    accumId.map{ x =>
+      val taskMax: Long = accumIdToInfo.get(x).map { accumInfo =>
+        accumInfo.taskUpdatesMap.values.max
+      }.getOrElse(0)
+      val stageMax: Long = accumIdToInfo.get(x).map { accumInfo =>
+        accumInfo.stageValuesMap.values.max
+      }.getOrElse(0)
+      Math.max(taskMax, stageMax)
+    }
   }
 
   def getAccumByName(name: Option[String]): Option[AccumInfo] = {

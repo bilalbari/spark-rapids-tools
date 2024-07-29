@@ -19,7 +19,7 @@ package org.apache.spark.sql.rapids.tool
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
-import com.nvidia.spark.rapids.tool.profiling.{BlockManagerRemovedCase, DriverAccumCase, JobInfoClass, ProfileUtils, ResourceProfileInfoCase, SQLExecutionInfoClass, SQLPlanMetricsCase, TaskStageAccumCase}
+import com.nvidia.spark.rapids.tool.profiling.{BlockManagerRemovedCase, DriverAccumCase, JobInfoClass, ProfileUtils, ResourceProfileInfoCase, SQLExecutionInfoClass, SQLPlanMetricsCase}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
@@ -355,12 +355,13 @@ abstract class EventProcessorBase[T <: AppBase](app: T) extends SparkListener wi
     // Parse task accumulables
     for (res <- event.taskInfo.accumulables) {
       try {
-        EventUtils.buildTaskStageAccumFromAccumInfo(res,
-          event.stageId, event.stageAttemptId, Some(event.taskInfo.taskId)).foreach { thisMetric =>
-          val arrBuf = app.taskStageAccumMap.getOrElseUpdate(res.id,
-            ArrayBuffer[TaskStageAccumCase]())
-          arrBuf += thisMetric
-        }
+//        EventUtils.buildTaskStageAccumFromAccumInfo(res,
+//          event.stageId, event.stageAttemptId,
+        //          Some(event.taskInfo.taskId)).foreach { thisMetric =>
+//          val arrBuf = app.taskStageAccumMap.getOrElseUpdate(res.id,
+//            ArrayBuffer[TaskStageAccumCase]())
+//          arrBuf += thisMetric
+//        }
         app.accumManager.getOrCreateAccum(res, event.stageId, Some(event.taskInfo.taskId))
       } catch {
         case NonFatal(e) =>
@@ -470,12 +471,12 @@ abstract class EventProcessorBase[T <: AppBase](app: T) extends SparkListener wi
     for (res <- event.stageInfo.accumulables) {
       try {
         val accumInfo = res._2
-        EventUtils.buildTaskStageAccumFromAccumInfo(accumInfo,
-          event.stageInfo.stageId, event.stageInfo.attemptNumber()).foreach { thisMetric =>
-          val arrBuf = app.taskStageAccumMap.getOrElseUpdate(accumInfo.id,
-            ArrayBuffer[TaskStageAccumCase]())
-          arrBuf += thisMetric
-        }
+//        EventUtils.buildTaskStageAccumFromAccumInfo(accumInfo,
+//          event.stageInfo.stageId, event.stageInfo.attemptNumber()).foreach { thisMetric =>
+//          val arrBuf = app.taskStageAccumMap.getOrElseUpdate(accumInfo.id,
+//            ArrayBuffer[TaskStageAccumCase]())
+//          arrBuf += thisMetric
+//        }
         app.accumManager.getOrCreateAccum(accumInfo, event.stageInfo.stageId)
       } catch {
         case NonFatal(e) =>

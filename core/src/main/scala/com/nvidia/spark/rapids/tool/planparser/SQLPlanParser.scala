@@ -613,21 +613,19 @@ object SQLPlanParser extends Logging {
    * the duration.
    */
   def getTotalDuration(accumId: Option[Long], app: AppBase): Option[Long] = {
-    val taskForAccum = accumId.flatMap(id => app.taskStageAccumMap.get(id))
-      .getOrElse(ArrayBuffer.empty)
-    val accumValues = taskForAccum.map(_.value.getOrElse(0L))
-    val maxDuration = if (accumValues.isEmpty) {
-      None
-    } else {
-      Some(accumValues.max)
-    }
-    val maxAcross = accumId match {
-      case Some(id) => app.accumManager.getMaxAcross(id)
-      case None => None
-    }
-    println(s"maxAcross: $maxAcross")
-    println(s"original maxAcross: $maxDuration")
-    maxDuration
+//    val taskForAccum = accumId.flatMap(id => app.taskStageAccumMap.get(id))
+//      .getOrElse(ArrayBuffer.empty)
+//    val accumValues = taskForAccum.map(_.value.getOrElse(0L))
+//    val maxDuration = if (accumValues.isEmpty) {
+//      None
+//    } else {
+//      Some(accumValues.max)
+//    }
+    val maxAcross = app.accumManager.getMaxAcross(accumId)
+//    println(s"maxAcross: $maxAcross")
+//    println(s"original maxAcross: $maxDuration")
+//    maxDuration
+    maxAcross
   }
 
   def getTotalDurationNew(accumId: Option[Long], app: AppBase): Option[Long] = {

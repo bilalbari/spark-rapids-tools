@@ -273,15 +273,15 @@ object GenerateTimeline {
       }
     }
 
-    val semMetricsNs = semWaitIds.toList.flatMap { id =>
-      app.taskStageAccumMap.get(id)
-    }.flatten
-
-    val semMetricsMs = app.taskStageAccumMap.values.filter { buffer =>
-        buffer.headOption.exists { h =>
-            h.name.exists(_ == "gpuSemaphoreWait")
-        }
-    }.flatten
+//    val semMetricsNs = semWaitIds.toList.flatMap { id =>
+//      app.taskStageAccumMap.get(id)
+//    }.flatten
+//
+//    val semMetricsMs = app.taskStageAccumMap.values.filter { buffer =>
+//        buffer.headOption.exists { h =>
+//            h.name.exists(_ == "gpuSemaphoreWait")
+//        }
+//    }.flatten
 
     val newSemMetricsMs = app.accumManager.getAccumByName(Some("gpuSemaphoreWait")).map{
       _.taskUpdatesMap.values.sum
@@ -294,25 +294,25 @@ object GenerateTimeline {
     }.sum
 
 
-    val readMetrics = readTimeIds.toList.flatMap { id =>
-      app.taskStageAccumMap.get(id)
-    }.flatten
+//    val readMetrics = readTimeIds.toList.flatMap { id =>
+//      app.taskStageAccumMap.get(id)
+//    }.flatten
 
     val readMetricsNew = readTimeIds.toList.flatMap{
       app.accumManager.getAccumById
     }
 
-    val opMetrics = opTimeIds.toList.flatMap { id =>
-      app.taskStageAccumMap.get(id)
-    }.flatten
+//    val opMetrics = opTimeIds.toList.flatMap { id =>
+//      app.taskStageAccumMap.get(id)
+//    }.flatten
 
     val opMetricsNew = opTimeIds.toList.flatMap{
       app.accumManager.getAccumById
     }
 
-    val writeMetrics = writeTimeIds.toList.flatMap { id =>
-      app.taskStageAccumMap.get(id)
-    }.flatten
+//    val writeMetrics = writeTimeIds.toList.flatMap { id =>
+//      app.taskStageAccumMap.get(id)
+//    }.flatten
 
     val newWriteMetrics = writeTimeIds.toList.flatMap{
       app.accumManager.getAccumById
@@ -326,38 +326,40 @@ object GenerateTimeline {
       val launchTime = tc.launchTime
       val finishTime = tc.finishTime
       val duration = tc.duration
-      val semTimeMs = (semMetricsNs.filter { m =>
-        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
-      }.flatMap(_.update).sum / 1000000) + (semMetricsMs.filter{ m =>
-        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
-      }.flatMap(_.update).sum)
+//      val semTimeMs = (semMetricsNs.filter { m =>
+//        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
+//      }.flatMap(_.update).sum / 1000000) + (semMetricsMs.filter{ m =>
+//        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
+//      }.flatMap(_.update).sum)
       val newSemTimeMs = newSemMetricsNs / 1000000 + newSemMetricsMs
-      println(s"The old semaphore time is $semTimeMs")
-      println(s"The new semaphore time is $newSemTimeMs")
-      val readTimeMs = readMetrics.filter { m =>
-        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
-      }.flatMap(_.update).sum / 1000000 + tc.sr_fetchWaitTime
+//      println(s"The old semaphore time is $semTimeMs")
+//      println(s"The new semaphore time is $newSemTimeMs")
+//      val readTimeMs = readMetrics.filter { m =>
+//        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
+//      }.flatMap(_.update).sum / 1000000 + tc.sr_fetchWaitTime
       val newReadTimeMs = readMetricsNew.flatMap{
         _.taskUpdatesMap.get(taskId)
       }.sum / 1000000 + tc.sr_fetchWaitTime
-      println(s"The old read time is $readTimeMs")
-      println(s"The new read time is $newReadTimeMs")
-      val opTimeMs = opMetrics.filter { m =>
-        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
-      }.flatMap(_.update).sum / 1000000
-      print(s"The old op time is $opTimeMs")
+//      println(s"The old read time is $readTimeMs")
+//      println(s"The new read time is $newReadTimeMs")
+//      val opTimeMs = opMetrics.filter { m =>
+//        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
+//      }.flatMap(_.update).sum / 1000000
+//      print(s"The old op time is $opTimeMs")
       val opTimeNew = opMetricsNew.flatMap(_.taskUpdatesMap.get(taskId)).sum / 1000000
-      print(s"The new op time is $opTimeNew")
-      val writeTimeMs = writeMetrics.filter { m =>
-        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
-      }.flatMap(_.update).sum / 1000000 + tc.sw_writeTime
+//      print(s"The new op time is $opTimeNew")
+//      val writeTimeMs = writeMetrics.filter { m =>
+//        m.stageId == stageId && m.taskId.contains(taskId) && m.update.isDefined
+//      }.flatMap(_.update).sum / 1000000 + tc.sw_writeTime
       // New changes for value comparison
-      println(s"The old write time is $writeTimeMs")
+//      println(s"The old write time is $writeTimeMs")
       val newWriteTimeMs = newWriteMetrics.
         flatMap(_.taskUpdatesMap.get(taskId)).sum / 1000000 + tc.sw_writeTime
-      println(s"The new write time is ${newWriteTimeMs}")
+//      println(s"The new write time is ${newWriteTimeMs}")
+//      val taskInfo = new TimelineTaskInfo(stageId, taskId, launchTime, finishTime, duration,
+//        tc.executorDeserializeTime, readTimeMs, semTimeMs, opTimeMs, writeTimeMs)
       val taskInfo = new TimelineTaskInfo(stageId, taskId, launchTime, finishTime, duration,
-        tc.executorDeserializeTime, readTimeMs, semTimeMs, opTimeMs, writeTimeMs)
+        tc.executorDeserializeTime, newReadTimeMs, newSemTimeMs, opTimeNew, newWriteTimeMs)
       val execHost = s"$execId/$host"
       execHostToTaskList.getOrElseUpdate(execHost, ArrayBuffer.empty) += taskInfo
       minStartTime = Math.min(launchTime, minStartTime)
