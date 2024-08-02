@@ -24,7 +24,7 @@ import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet, LinkedHashSet, M
 import com.nvidia.spark.rapids.tool.{DatabricksEventLog, DatabricksRollingEventLogFilesFileReader, EventLogInfo}
 import com.nvidia.spark.rapids.tool.planparser.{HiveParseHelper, ReadParser}
 import com.nvidia.spark.rapids.tool.planparser.HiveParseHelper.isHiveTableScanNode
-import com.nvidia.spark.rapids.tool.profiling.{BlockManagerRemovedCase, DataSourceCase, DriverAccumCase, JobInfoClass, ResourceProfileInfoCase, SQLExecutionInfoClass, SQLPlanMetricsCase, TaskStageAccumCase}
+import com.nvidia.spark.rapids.tool.profiling.{BlockManagerRemovedCase, DataSourceCase, DriverAccumCase, JobInfoClass, ResourceProfileInfoCase, SQLExecutionInfoClass, SQLPlanMetricsCase}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -33,7 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListenerEvent, StageInfo}
 import org.apache.spark.sql.execution.SparkPlanInfo
 import org.apache.spark.sql.execution.ui.SparkPlanGraphNode
-import org.apache.spark.sql.rapids.tool.store.{StageModel, StageModelManager, TaskModelManager}
+import org.apache.spark.sql.rapids.tool.store.{AccumManager, StageModel, StageModelManager, TaskModelManager}
 import org.apache.spark.sql.rapids.tool.util.{EventUtils, RapidsToolsConfUtil, ToolsPlanGraph, UTF8Source}
 import org.apache.spark.util.Utils
 
@@ -79,8 +79,10 @@ abstract class AppBase(
   var sqlPlanMetricsAdaptive: ArrayBuffer[SQLPlanMetricsCase] = ArrayBuffer[SQLPlanMetricsCase]()
 
   // accum id to task stage accum info
-  var taskStageAccumMap: HashMap[Long, ArrayBuffer[TaskStageAccumCase]] =
-    HashMap[Long, ArrayBuffer[TaskStageAccumCase]]()
+//  var taskStageAccumMap: HashMap[Long, ArrayBuffer[TaskStageAccumCase]] =
+//    HashMap[Long, ArrayBuffer[TaskStageAccumCase]]()
+
+  lazy val accumManager: AccumManager = new AccumManager()
 
   lazy val stageManager: StageModelManager = new StageModelManager()
   // Container that manages TaskIno including SparkMetrics.
@@ -180,7 +182,8 @@ abstract class AppBase(
   }
 
   def cleanupAccumId(accId: Long): Unit = {
-    taskStageAccumMap.remove(accId)
+    accumManager.removeAccumById(accId)
+//    taskStageAccumMap.remove(accId)
     driverAccumMap.remove(accId)
     stageManager.removeAccumulatorId(accId)
   }
