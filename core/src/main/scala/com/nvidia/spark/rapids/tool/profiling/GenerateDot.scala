@@ -86,7 +86,7 @@ object GenerateDot {
   def apply(app: ApplicationInfo, outputDirectory: String): Unit = {
     val accums = CollectInformation.generateSQLAccums(Seq(app))
     val accumSummary = accums.map { a =>
-      Seq(a.sqlID, a.accumulatorId, a.total)
+      Seq(a.sqlID, a.accumMeta.id, a.total)
     }
     val accumIdToStageId = app.accumManager.getAccumSingleStage
     val formatter = java.text.NumberFormat.getIntegerInstance
