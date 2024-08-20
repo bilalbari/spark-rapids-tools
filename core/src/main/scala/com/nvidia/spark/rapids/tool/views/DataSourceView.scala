@@ -46,12 +46,12 @@ trait AppDataSourceViewTrait extends ViewableTrait[DataSourceProfileResult] {
   private def getIoMetrics(sqlAccums: Seq[SQLAccumProfileResults]): IoMetrics = {
     val finalRes = IoMetrics(0, 0, 0, 0)
     try {
-      sqlAccums.map(accum => accum.name match {
+      sqlAccums.map(accum => accum.accumMeta.getName() match {
         case IoMetrics.BUFFER_TIME_LABEL => finalRes.bufferTime = accum.total
         case IoMetrics.SCAN_TIME_LABEL => finalRes.scanTime = accum.total
         case IoMetrics.DATA_SIZE_LABEL => finalRes.dataSize = accum.total
         case IoMetrics.DECODE_TIME_LABEL => finalRes.decodeTime = accum.total
-        case _ => throw UnsupportedMetricNameException(accum.name)
+        case _ => throw UnsupportedMetricNameException(accum.accumMeta.getName())
       })
     } catch {
       case e: Exception =>
@@ -97,10 +97,11 @@ trait AppDataSourceViewTrait extends ViewableTrait[DataSourceProfileResult] {
       appSqlAccums: Seq[SQLAccumProfileResults]): Seq[DataSourceProfileResult] = {
     // Filter appSqlAccums to get only required metrics
     val dataSourceMetrics = appSqlAccums.filter(
-      sqlAccum => sqlAccum.name.contains(IoMetrics.BUFFER_TIME_LABEL)
-        || sqlAccum.name.contains(IoMetrics.SCAN_TIME_LABEL)
-        || sqlAccum.name.contains(IoMetrics.DECODE_TIME_LABEL)
-        || sqlAccum.name.equals(IoMetrics.DATA_SIZE_LABEL))
+      sqlAccum =>
+        sqlAccum.accumMeta.getName().contains(IoMetrics.BUFFER_TIME_LABEL)
+        || sqlAccum.accumMeta.getName().contains(IoMetrics.SCAN_TIME_LABEL)
+        || sqlAccum.accumMeta.getName().contains(IoMetrics.DECODE_TIME_LABEL)
+        || sqlAccum.accumMeta.getName().equals(IoMetrics.DATA_SIZE_LABEL))
 
     app.dataSourceInfo.map { ds =>
       val sqlIdtoDs = dataSourceMetrics.filter(

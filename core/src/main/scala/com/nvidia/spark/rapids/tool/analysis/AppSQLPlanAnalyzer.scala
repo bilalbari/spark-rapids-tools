@@ -270,6 +270,7 @@ class AppSQLPlanAnalyzer(app: AppBase, appIndex: Int) extends AppAnalysisBase(ap
   def generateSQLAccums(): Seq[SQLAccumProfileResults] = {
     allSQLMetrics.flatMap { metric =>
       val accumTaskStats = app.accumManager.calculateAccStats(metric.accumulatorId)
+      val accumMeta = app.accumManager.accumInfoMap(metric.accumulatorId).infoRef
       // local mode driver gets updates
       val driverAccumsOpt = app.driverAccumMap.get(metric.accumulatorId)
       val driverMax = driverAccumsOpt match {
@@ -299,9 +300,8 @@ class AppSQLPlanAnalyzer(app: AppBase, appIndex: Int) extends AppAnalysisBase(ap
         val med = Math.max(taskInfo.med, driverInfo.med)
         val total = Math.max(taskInfo.total, driverInfo.total)
 
-        Some(SQLAccumProfileResults(appIndex, metric.sqlID,
-          metric.nodeID, metric.nodeName, metric.accumulatorId, metric.name,
-          min, med, max, total, metric.metricType, metric.stageIds.mkString(",")))
+        Some(SQLAccumProfileResults(appIndex, metric.sqlID, metric.nodeID, metric.nodeName,
+          accumMeta, min, med, max, total, metric.metricType, metric.stageIds.mkString(",")))
       } else {
         None
       }

@@ -39,7 +39,7 @@ trait AppSQLPlanMetricsViewTrait extends ViewableTrait[SQLAccumProfileResults] {
   override def sortView(
       rows: Seq[SQLAccumProfileResults]): Seq[SQLAccumProfileResults] = {
     rows.sortBy(cols => (cols.appIndex, cols.sqlID, cols.nodeID,
-      cols.nodeName, cols.accumulatorId, cols.metricType))
+      cols.nodeName, cols.accumMeta.id, cols.metricType))
   }
 }
 
