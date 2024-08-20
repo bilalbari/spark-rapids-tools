@@ -26,8 +26,7 @@ from pydantic.dataclasses import dataclass
 from pydantic_core import PydanticCustomError
 
 from spark_rapids_pytools.cloud_api.sp_types import DeployMode
-from spark_rapids_pytools.common.utilities import ToolLogging
-from spark_rapids_pytools.rapids.qualification import QualGpuClusterReshapeType
+from spark_rapids_pytools.common.utilities import ToolLogging, Utils
 from spark_rapids_tools.cloud import ClientCluster
 from spark_rapids_tools.utils import AbstractPropContainer, is_http_file
 from ..enums import QualFilterApp, CspEnv, QualEstimationModel
@@ -369,6 +368,7 @@ class ToolUserArgModel(AbsToolUserArgModel):
                                                               jvm_threads=self.jvm_threads)
         self.p_args['toolArgs']['jvmMaxHeapSize'] = jvm_heap
         self.p_args['toolArgs']['jobResources'] = adjusted_resources
+        self.p_args['toolArgs']['log4jPath'] = Utils.resource_path('dev/log4j.properties')
 
     def init_extra_arg_cases(self) -> list:
         if self.eventlogs is None:
@@ -446,25 +446,17 @@ class QualifyUserArgModel(ToolUserArgModel):
     Represents the arguments collected by the user to run the qualification tool.
     This is used as doing preliminary validation against some of the common pattern
     """
-    target_platform: Optional[CspEnv] = None
     filter_apps: Optional[QualFilterApp] = None
-    gpu_cluster_recommendation: Optional[QualGpuClusterReshapeType] = None
     estimation_model_args: Optional[Dict] = dataclasses.field(default_factory=dict)
 
     def init_tool_args(self) -> None:
         self.p_args['toolArgs']['platform'] = self.platform
         self.p_args['toolArgs']['savingsCalculations'] = False
-        self.p_args['toolArgs']['targetPlatform'] = self.target_platform
         # check the filter_apps argument
         if self.filter_apps is None:
             self.p_args['toolArgs']['filterApps'] = QualFilterApp.get_default()
         else:
             self.p_args['toolArgs']['filterApps'] = self.filter_apps
-        # check the reshapeType argument
-        if self.gpu_cluster_recommendation is None:
-            self.p_args['toolArgs']['gpuClusterRecommendation'] = QualGpuClusterReshapeType.get_default()
-        else:
-            self.p_args['toolArgs']['gpuClusterRecommendation'] = self.gpu_cluster_recommendation
         # Check the estimationModel argument
         # This assumes that the EstimationModelArgProcessor was used to process the arguments before
         # constructing this validator.
@@ -487,22 +479,6 @@ class QualifyUserArgModel(ToolUserArgModel):
         # At this point, if the platform is still none, then we can set it to the default value
         # which is the onPrem platform.
         runtime_platform = self.get_or_set_platform()
-        # check the targetPlatform argument
-        if self.p_args['toolArgs']['targetPlatform']:
-            equivalent_pricing_list = runtime_platform.get_equivalent_pricing_platform()
-            if not equivalent_pricing_list:
-                # no target_platform for that runtime environment
-                self.logger.info(
-                    'Argument target_platform does not support the current cluster [%s]', runtime_platform)
-                self.p_args['toolArgs']['targetPlatform'] = None
-            else:
-                if not self.p_args['toolArgs']['targetPlatform'] in equivalent_pricing_list:
-                    target_platform = self.p_args['toolArgs']['targetPlatform']
-                    raise PydanticCustomError(
-                        'invalid_argument',
-                        f'The platform [{target_platform}] is currently '
-                        f'not supported to calculate savings from [{runtime_platform}] cluster\n  Error:')
-
         # process JVM arguments
         self.process_jvm_args()
 
@@ -512,9 +488,7 @@ class QualifyUserArgModel(ToolUserArgModel):
             'outputFolder': self.output_folder,
             'platformOpts': {
                 'credentialFile': None,
-                'deployMode': DeployMode.LOCAL,
-                # used to be sent to the scala core java cmd
-                'targetPlatform': self.p_args['toolArgs']['targetPlatform']
+                'deployMode': DeployMode.LOCAL
             },
             'migrationClustersProps': {
                 'cpuCluster': self.cluster,
@@ -524,7 +498,8 @@ class QualifyUserArgModel(ToolUserArgModel):
                 'remoteFolder': None,
                 'platformArgs': {
                     'jvmMaxHeapSize': self.p_args['toolArgs']['jvmMaxHeapSize'],
-                    'jvmGC': self.p_args['toolArgs']['jvmGC']
+                    'jvmGC': self.p_args['toolArgs']['jvmGC'],
+                    'Dlog4j.configuration': self.p_args['toolArgs']['log4jPath']
                 },
                 'jobResources': self.p_args['toolArgs']['jobResources']
             },
@@ -532,7 +507,6 @@ class QualifyUserArgModel(ToolUserArgModel):
             'eventlogs': self.eventlogs,
             'filterApps': QualFilterApp.fromstring(self.p_args['toolArgs']['filterApps']),
             'toolsJar': self.p_args['toolArgs']['toolsJar'],
-            'gpuClusterRecommendation': self.p_args['toolArgs']['gpuClusterRecommendation'],
             'estimationModelArgs': self.p_args['toolArgs']['estimationModelArgs']
         }
         return wrapped_args
@@ -707,6 +681,26 @@ class TrainUserArgModel(AbsToolUserArgModel):
             'base_model': self.base_model,
             'features_csv_dir': self.features_csv_dir,
             'platformOpts': {},
+        }
+
+
+@dataclass
+@register_tool_arg_validator('stats')
+class StatsUserArgModel(AbsToolUserArgModel):
+    """
+    Represents the arguments collected by the user to run the stats tool.
+    """
+    qual_output: str = None
+    config_path: Optional[str] = None
+    output_folder: Optional[str] = None
+
+    def build_tools_args(self) -> dict:
+        return {
+            'runtimePlatform': self.platform,
+            'config_path': self.config_path,
+            'output_folder': self.output_folder,
+            'qual_output': self.qual_output,
+            'platformOpts': {}
         }
 
 
