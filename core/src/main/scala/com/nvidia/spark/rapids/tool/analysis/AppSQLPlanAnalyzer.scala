@@ -319,37 +319,68 @@ class AppSQLPlanAnalyzer(app: AppBase, appIndex: Int) extends AppAnalysisBase(ap
    * @return a sequence of AccumProfileResults
    */
   def generateStageLevelAccums(): Seq[AccumProfileResults] = {
-    app.accumManager.accumInfoMap.flatMap { accumMapEntry =>
-      val accumInfo = accumMapEntry._2
-      accumInfo.stageValuesMap.keySet.flatMap( stageId => {
-        val stageTaskIds = app.taskManager.getAllTasksStageAttempt(stageId).map(_.taskId).toSet
-        // get the task updates that belong to that stage
-        val taskUpatesSubset =
-          accumInfo.taskUpdatesMap.filterKeys(stageTaskIds.contains).values.toSeq.sorted
-        if (taskUpatesSubset.isEmpty) {
-          None
+//    app.accumManager.accumInfoMap.flatMap { accumMapEntry =>
+//      val accumInfo = accumMapEntry._2
+//      accumInfo.stageValuesMap.keySet.flatMap( stageId => {
+//        val stageTaskIds = app.taskManager.getAllTasksStageAttempt(stageId).map(_.taskId).toSet
+//        // get the task updates that belong to that stage
+//        val taskUpatesSubset =
+//          accumInfo.taskUpdatesMap.filterKeys(stageTaskIds.contains).values.toSeq.sorted
+//        if (taskUpatesSubset.isEmpty) {
+//          None
+//        } else {
+//          val min = taskUpatesSubset.head
+//          val max = taskUpatesSubset.last
+//          val sum = taskUpatesSubset.sum
+//          val median = if (taskUpatesSubset.size % 2 == 0) {
+//            val mid = taskUpatesSubset.size / 2
+//            (taskUpatesSubset(mid) + taskUpatesSubset(mid - 1)) / 2
+//          } else {
+//            taskUpatesSubset(taskUpatesSubset.size / 2)
+//          }
+//          Some(AccumProfileResults(
+//            appIndex,
+//            stageId,
+//            accumInfo.infoRef,
+//            min = min,
+//            median = median,
+//            max = max,
+//            total = sum))
+//        }
+//      })
+//    }
+//  }.toSeq
+  app.accumManager.getAccumInfoSeq.flatMap { accumMapEntry =>
+    val accumInfo = accumMapEntry
+    accumInfo.stageValuesMap.keySet.flatMap( stageId => {
+      val stageTaskIds = app.taskManager.getAllTasksStageAttempt(stageId).map(_.taskId).toSet
+      // get the task updates that belong to that stage
+      val taskUpatesSubset =
+        accumInfo.taskUpdatesMap.filterKeys(stageTaskIds.contains).values.toSeq.sorted
+      if (taskUpatesSubset.isEmpty) {
+        None
+      } else {
+        val min = taskUpatesSubset.head
+        val max = taskUpatesSubset.last
+        val sum = taskUpatesSubset.sum
+        val median = if (taskUpatesSubset.size % 2 == 0) {
+          val mid = taskUpatesSubset.size / 2
+          (taskUpatesSubset(mid) + taskUpatesSubset(mid - 1)) / 2
         } else {
-          val min = taskUpatesSubset.head
-          val max = taskUpatesSubset.last
-          val sum = taskUpatesSubset.sum
-          val median = if (taskUpatesSubset.size % 2 == 0) {
-            val mid = taskUpatesSubset.size / 2
-            (taskUpatesSubset(mid) + taskUpatesSubset(mid - 1)) / 2
-          } else {
-            taskUpatesSubset(taskUpatesSubset.size / 2)
-          }
-          Some(AccumProfileResults(
-            appIndex,
-            stageId,
-            accumInfo.infoRef,
-            min = min,
-            median = median,
-            max = max,
-            total = sum))
+          taskUpatesSubset(taskUpatesSubset.size / 2)
+        }
+        Some(AccumProfileResults(
+          appIndex,
+          stageId,
+          accumInfo.infoRef,
+          min = min,
+          median = median,
+          max = max,
+          total = sum))
         }
       })
     }
-  }.toSeq
+  }
 }
 
 object AppSQLPlanAnalyzer {

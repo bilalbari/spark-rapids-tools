@@ -274,22 +274,39 @@ object GenerateTimeline {
       }
     }
 
+//    val semMetricsNs = semWaitIds.toList
+//      .flatMap(app.accumManager.accumInfoMap.get)
+//      .flatMap(_.taskUpdatesMap.values).sum
+
     val semMetricsNs = semWaitIds.toList
-      .flatMap(app.accumManager.accumInfoMap.get)
+      .flatMap(app.accumManager.getAccumInfo)
       .flatMap(_.taskUpdatesMap.values).sum
 
-    val semMetricsMs = app.accumManager.accumInfoMap.flatMap {
-        case (_,accumInfo: AccumInfo)
-            if accumInfo.infoRef.name == AccumNameRef.NAMES_TABLE.get("gpuSemaphoreWait") =>
-            Some(accumInfo.taskUpdatesMap.values.sum)
-        case _ => None
-      }.sum
+//    val semMetricsMs = app.accumManager.accumInfoMap.flatMap {
+//        case (_,accumInfo: AccumInfo)
+//            if accumInfo.infoRef.name == AccumNameRef.NAMES_TABLE.get("gpuSemaphoreWait") =>
+//            Some(accumInfo.taskUpdatesMap.values.sum)
+//        case _ => None
+//      }.sum
 
-    val readMetrics = readTimeIds.toList.flatMap(app.accumManager.accumInfoMap.get)
+    val semMetricsMs = app.accumManager.getAccumInfoSeq.flatMap {
+      case accumInfo: AccumInfo
+        if accumInfo.infoRef.name == AccumNameRef.NAMES_TABLE.get("gpuSemaphoreWait") =>
+        Some(accumInfo.taskUpdatesMap.values.sum)
+      case _ => None
+    }.sum
 
-    val opMetrics = opTimeIds.toList.flatMap(app.accumManager.accumInfoMap.get)
+//    val readMetrics = readTimeIds.toList.flatMap(app.accumManager.accumInfoMap.get)
+//
+//    val opMetrics = opTimeIds.toList.flatMap(app.accumManager.accumInfoMap.get)
+//
+//    val writeMetrics = writeTimeIds.toList.flatMap(app.accumManager.accumInfoMap.get)
 
-    val writeMetrics = writeTimeIds.toList.flatMap(app.accumManager.accumInfoMap.get)
+    val readMetrics = readTimeIds.toList.flatMap(app.accumManager.getAccumInfo)
+
+    val opMetrics = opTimeIds.toList.flatMap(app.accumManager.getAccumInfo)
+
+    val writeMetrics = writeTimeIds.toList.flatMap(app.accumManager.getAccumInfo)
 
     app.taskManager.getAllTasks().foreach { tc =>
       val host = tc.host

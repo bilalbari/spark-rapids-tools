@@ -36,7 +36,7 @@ import org.apache.spark.status.KVUtils.KVIndexParam
 @JsonIgnoreProperties(ignoreUnknown = true)
 class AccumInfo(val infoRef: AccumMetaRef) extends Serializable {
 
-  @JsonIgnore @KVIndexParam
+  @KVIndexParam
   val id: Long = infoRef.id
   // TODO: use sorted maps for stageIDs and taskIds?
 //  @JsonProperty("taskUpdatesMap")
@@ -126,6 +126,7 @@ class AccumInfo(val infoRef: AccumMetaRef) extends Serializable {
     }
   }
 
+  @JsonIgnore
   def getMaxStageValue: Option[Long] = {
     if (stageValuesMap.values.isEmpty) {
       None

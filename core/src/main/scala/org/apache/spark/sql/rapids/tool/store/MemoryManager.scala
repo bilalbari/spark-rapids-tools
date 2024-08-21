@@ -4,9 +4,9 @@ import java.io.File
 
 import org.apache.spark.SparkConf
 import org.apache.spark.status.KVUtils
-import org.apache.spark.util.kvstore.KVStore
+import org.apache.spark.util.kvstore.{KVStore, KVStoreView}
 
-object MemoryManager {
+class MemoryManager {
 
   private val sparkConf = new SparkConf()
   private var listing : KVStore = null
@@ -23,5 +23,13 @@ object MemoryManager {
 
   def read[T](klass: Class[T], key: Any): T = {
       listing.read(klass, key)
+  }
+
+  def delete[T](klass: Class[T], key: Any): Unit = {
+      listing.delete(klass, key)
+  }
+
+  def view[T](klass: Class[T]): KVStoreView[T] = {
+      listing.view(klass)
   }
 }

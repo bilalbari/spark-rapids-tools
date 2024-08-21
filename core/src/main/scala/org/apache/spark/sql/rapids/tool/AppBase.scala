@@ -33,7 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListenerEvent, StageInfo}
 import org.apache.spark.sql.execution.SparkPlanInfo
 import org.apache.spark.sql.execution.ui.SparkPlanGraphNode
-import org.apache.spark.sql.rapids.tool.store.{AccumManager, MemoryManager, StageModel, StageModelManager, TaskModelManager}
+import org.apache.spark.sql.rapids.tool.store.{AccumManager, StageModel, StageModelManager, TaskModelManager}
 import org.apache.spark.sql.rapids.tool.util.{EventUtils, RapidsToolsConfUtil, ToolsPlanGraph, UTF8Source}
 import org.apache.spark.util.Utils
 
@@ -86,7 +86,7 @@ abstract class AppBase(
   // A task is added during a TaskEnd eventLog
   lazy val taskManager: TaskModelManager = new TaskModelManager()
 
-  MemoryManager.initialize()
+//  MemoryManager.initialize()
 
   var driverAccumMap: HashMap[Long, ArrayBuffer[DriverAccumCase]] =
     HashMap[Long, ArrayBuffer[DriverAccumCase]]()
